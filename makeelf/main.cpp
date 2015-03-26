@@ -36,8 +36,7 @@ enum SymbolTypeEnum {
     stUnkown
 };
 
-enum SymbolSectionEnum
-{
+enum SymbolSectionEnum {
     ssText,
     ssConst,
     ssData,
@@ -60,33 +59,13 @@ struct SymbolItem {
 
 typedef std::map < std::string, SymbolItem > SymbolMap;
 
-enum LinkTypeEnum {
-    ltText,
-    ltConst,
-    ltData,
-    ltBss
-};
 
-struct LinkItem {
-    LinkTypeEnum type;
-    unsigned destaddr;
-    unsigned srcaddr;
-    unsigned srcsect;
-    unsigned size;
-};
-
-typedef std::vector < LinkItem > LinkArray;
-
-
-LinkTypeEnum sectiontypetolinktype(SymbolSectionEnum sse);
-bool locatesymbolbyaddr(SymbolMap& symbols, unsigned addr, unsigned sectindex, SymbolMap::iterator& iter);
-bool findlinkpartsbyoffset(LinkArray& linkarray, unsigned offset, unsigned section, LinkArray::const_iterator& lit);
 SymbolMap loadmapfromtxt(const wchar_t* path);
-void printfreespace( exhdr_CodeSetInfo* exheader );
+void printfreespace(exhdr_CodeSetInfo* exheader);
 void printexclamatorymark();
 
 
-int wmain(int argc, const wchar_t *argv[])
+int wmain(int argc, const wchar_t* argv[])
 {
     const wchar_t* exheaderpath = NULL;
     const wchar_t* symbolspath = NULL;
@@ -101,7 +80,7 @@ int wmain(int argc, const wchar_t *argv[])
             symbolspath = &(argv[i][sizeof "--symbols=" - 1]);
         } else if (wcscmp(argv[i], L"-o") == 0) {
             outputpath = argv[++i];
-        }else if (wcscmp(argv[i], L"-i") == 0) {
+        } else if (wcscmp(argv[i], L"-i") == 0) {
             inputpath = argv[++i];
         } else if (wcscmp(argv[i], L"-v") == 0) {
             verbose = true;
@@ -158,11 +137,11 @@ int wmain(int argc, const wchar_t *argv[])
     elfio writer;
 
     // You can't proceed without this function call!
-    writer.create( ELFCLASS32, ELFDATA2LSB );
+    writer.create(ELFCLASS32, ELFDATA2LSB);
 
-    writer.set_os_abi( ELFOSABI_NONE );
-    writer.set_type( ET_EXEC );
-    writer.set_machine( EM_ARM );
+    writer.set_os_abi(ELFOSABI_NONE);
+    writer.set_type(ET_EXEC);
+    writer.set_machine(EM_ARM);
 
     unsigned textoff = codebin_va_to_fileoffset(exheader, exheader->text.address, NULL);
     unsigned rodataoff = codebin_va_to_fileoffset(exheader, exheader->rodata.address, NULL);
@@ -190,117 +169,96 @@ int wmain(int argc, const wchar_t *argv[])
     //bsssect.content.insert(bsssect.content.end(), (char*)code + zibeginoff, (char*)code + ziendoff);
 
     // Create code section
-    section* text_sec = writer.sections.add( textsect.name );
-    text_sec->set_type( SHT_PROGBITS );
-    text_sec->set_flags( SHF_ALLOC | SHF_EXECINSTR );
-    text_sec->set_addr_align( 4 );
-    text_sec->set_data( (const char*)textsect.content.data(), textsect.content.size());
+    section* text_sec = writer.sections.add(textsect.name);
+    text_sec->set_type(SHT_PROGBITS);
+    text_sec->set_flags(SHF_ALLOC | SHF_EXECINSTR);
+    text_sec->set_addr_align(4);
+    text_sec->set_data((const char*)textsect.content.data(), textsect.content.size());
 
     // Create a loadable segment
     segment* text_seg = writer.segments.add();
-    text_seg->set_type( PT_LOAD );
-    text_seg->set_virtual_address( exheader->text.address );
-    text_seg->set_physical_address( exheader->text.address );
-    text_seg->set_flags( PF_X | PF_R );
-    text_seg->set_align( 4 );
+    text_seg->set_type(PT_LOAD);
+    text_seg->set_virtual_address(exheader->text.address);
+    text_seg->set_physical_address(exheader->text.address);
+    text_seg->set_flags(PF_X | PF_R);
+    text_seg->set_align(4);
 
     // Add code section into program segment
-    text_seg->add_section_index( text_sec->get_index(), text_sec->get_addr_align() );
+    text_seg->add_section_index(text_sec->get_index(), text_sec->get_addr_align());
 
     // const
-    section* const_sec = writer.sections.add( constsect.name );
-    const_sec->set_type( SHT_PROGBITS );
-    const_sec->set_flags( SHF_ALLOC );
-    const_sec->set_addr_align( 4 );
-    const_sec->set_data( (const char*)constsect.content.data(), constsect.content.size());
+    section* const_sec = writer.sections.add(constsect.name);
+    const_sec->set_type(SHT_PROGBITS);
+    const_sec->set_flags(SHF_ALLOC);
+    const_sec->set_addr_align(4);
+    const_sec->set_data((const char*)constsect.content.data(), constsect.content.size());
 
     // Create a read only segment
     segment* const_seg = writer.segments.add();
-    const_seg->set_type( PT_LOAD );
-    const_seg->set_virtual_address( exheader->rodata.address );
-    const_seg->set_physical_address( exheader->rodata.address );
-    const_seg->set_flags( PF_R );
-    const_seg->set_align( 4096 );
+    const_seg->set_type(PT_LOAD);
+    const_seg->set_virtual_address(exheader->rodata.address);
+    const_seg->set_physical_address(exheader->rodata.address);
+    const_seg->set_flags(PF_R);
+    const_seg->set_align(4096);
 
     // Add const section into program segment
-    const_seg->add_section_index( const_sec->get_index(), const_sec->get_addr_align() );
+    const_seg->add_section_index(const_sec->get_index(), const_sec->get_addr_align());
 
     // Create data section*
-    section* data_sec = writer.sections.add( datasect.name );
-    data_sec->set_type( SHT_PROGBITS );
-    data_sec->set_flags( SHF_ALLOC | SHF_WRITE );
-    data_sec->set_addr_align( 8 );
-    data_sec->set_data( (const char*)datasect.content.data(), datasect.content.size());
+    section* data_sec = writer.sections.add(datasect.name);
+    data_sec->set_type(SHT_PROGBITS);
+    data_sec->set_flags(SHF_ALLOC | SHF_WRITE);
+    data_sec->set_addr_align(8);
+    data_sec->set_data((const char*)datasect.content.data(), datasect.content.size());
 
     // Create a read/write segment
     segment* data_seg = writer.segments.add();
-    data_seg->set_type( PT_LOAD );
-    data_seg->set_virtual_address( exheader->data.address );
-    data_seg->set_physical_address( exheader->data.address );
-    data_seg->set_flags( PF_W | PF_R );
-    data_seg->set_align( 4096 );
+    data_seg->set_type(PT_LOAD);
+    data_seg->set_virtual_address(exheader->data.address);
+    data_seg->set_physical_address(exheader->data.address);
+    data_seg->set_flags(PF_W | PF_R);
+    data_seg->set_align(4096);
 
     // Add data section into program segment
-    data_seg->add_section_index( data_sec->get_index(), data_sec->get_addr_align() );
+    data_seg->add_section_index(data_sec->get_index(), data_sec->get_addr_align());
 
     // Create bss section
-    section* bss_sec = writer.sections.add( bsssect.name );
-    bss_sec->set_type( SHT_NOBITS );
-    bss_sec->set_flags( SHF_ALLOC | SHF_WRITE );
-    bss_sec->set_addr_align( 8 );
-    bss_sec->set_size( ziend - zibegin);
+    section* bss_sec = writer.sections.add(bsssect.name);
+    bss_sec->set_type(SHT_NOBITS);
+    bss_sec->set_flags(SHF_ALLOC | SHF_WRITE);
+    bss_sec->set_addr_align(8);
+    bss_sec->set_size(ziend - zibegin);
 
     if (retail == false) {
         // Create a extra read/write segment
         segment* bss_seg = writer.segments.add();
-        bss_seg->set_type( PT_LOAD );
-        bss_seg->set_virtual_address( zibegin );
-        bss_seg->set_physical_address( zibegin );
-        bss_seg->set_flags( PF_W | PF_R );
-        bss_seg->set_align( 4096 );
+        bss_seg->set_type(PT_LOAD);
+        bss_seg->set_virtual_address(zibegin);
+        bss_seg->set_physical_address(zibegin);
+        bss_seg->set_flags(PF_W | PF_R);
+        bss_seg->set_align(4096);
 
         // Add bss section into program segment
-        bss_seg->add_section_index( bss_sec->get_index(), bss_sec->get_addr_align() );
+        bss_seg->add_section_index(bss_sec->get_index(), bss_sec->get_addr_align());
     } else {
         // using exists segment like rvct4nintendo does
-        data_seg->add_section_index( bss_sec->get_index(), bss_sec->get_addr_align() );
+        data_seg->add_section_index(bss_sec->get_index(), bss_sec->get_addr_align());
     }
 
     // Setup entry point
-    writer.set_entry( exheader->data.address ); // _start
+    writer.set_entry(exheader->data.address);   // _start
 
     // Create ELF file
-    bool saveok = writer.save( outputpath );
+    bool saveok = writer.save(outputpath);
 
     if (verbose) {
-        printf("Save output file %s\n", (saveok?"done.":"failed!"));
+        printf("Save output file %s\n", (saveok ? "done." : "failed!"));
     }
 
     free(code);
     free(exheader);
 
-    return saveok?0:-1;
-}
-
-bool locatesymbolbyaddr(SymbolMap& symbols, unsigned addr, unsigned sectindex, SymbolMap::iterator& iter)
-{
-    for (iter = symbols.begin(); iter != symbols.end(); iter++) {
-        // TODO: ARM/Thumb?
-        if (iter->second.addr == addr && iter->second.undef == false && iter->second.sectindex == sectindex) {
-            return true;
-        }
-    }
-    return false;
-}
-
-bool findlinkpartsbyoffset(LinkArray& linkarray, unsigned offset, unsigned section, LinkArray::const_iterator& lit)
-{
-    for (lit = linkarray.begin(); lit != linkarray.end(); lit++) {
-        if (offset >= lit->srcaddr && offset < lit->srcaddr + lit->size && lit->srcsect == section) {
-            return true;
-        }
-    }
-    return false;
+    return saveok ? 0 : -1;
 }
 
 SymbolMap loadmapfromtxt(const wchar_t* path)
@@ -357,24 +315,7 @@ void trimstr(char* str)
     }
 }
 
-LinkTypeEnum sectiontypetolinktype(SymbolSectionEnum sse)
-{
-    switch (sse)
-    {
-    case ssText:
-        return ltText; // RX
-    case ssData:
-        return ltData; // RW
-    case ssBss:
-        return ltBss; // ZI
-    case ssConst:
-        return ltConst; // RO
-    default:
-        return ltData;
-    }
-}
-
-void printfreespace( exhdr_CodeSetInfo* exheader ) 
+void printfreespace(exhdr_CodeSetInfo* exheader)
 {
     if (exheader->text.codeSize > exheader->text.numMaxPages * 0x1000) {
         printf("text section overflowed 0x%X bytes!\n", exheader->text.codeSize - exheader->text.numMaxPages * 0x1000);
